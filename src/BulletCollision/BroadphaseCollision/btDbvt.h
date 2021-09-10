@@ -825,27 +825,28 @@ inline void btDbvt::enumLeaves(const btDbvtNode* root,
 
 //
 DBVT_PREFIX
-inline void btDbvt::collideTT(const btDbvtNode* root0,
-							  const btDbvtNode* root1,
+inline void btDbvt::collideTT(const btDbvtNode* root0,		//Lots of collide functions with different suffixes and different signatures, 
+							  const btDbvtNode* root1,		//all follow the same basic structure
+
 							  DBVT_IPOLICY)
 {
 	DBVT_CHECKTYPE
 	if (root0 && root1)
 	{
-		int depth = 1;
-		int treshold = DOUBLE_STACKSIZE - 4;
-		btAlignedObjectArray<sStkNN> stkStack;
-		stkStack.resize(DOUBLE_STACKSIZE);
-		stkStack[0] = sStkNN(root0, root1);
+		int depth = 1;								//used as an index in stkStack
+		int treshold = DOUBLE_STACKSIZE - 4;		//not sure about STACKSIZE
+		btAlignedObjectArray<sStkNN> stkStack;		//StkNN - struct for holding 2 nodes, created in do while as collide functions explore tree	
+		stkStack.resize(DOUBLE_STACKSIZE);			//StkStack - arrays defined to hold StkNN structs, keep track of stknn as they are explored in collide functions
+		stkStack[0] = sStkNN(root0, root1);			
 		do
 		{
-			sStkNN p = stkStack[--depth];
-			if (depth > treshold)
+			sStkNN p = stkStack[--depth];			//set p = to two nodes at depth
+			if (depth > treshold)					//if depth is not at threshold
 			{
 				stkStack.resize(stkStack.size() * 2);
-				treshold = stkStack.size() - 4;
+				treshold = stkStack.size() - 4;		//change threshold
 			}
-			if (p.a == p.b)
+			if (p.a == p.b)							//when would p.a = p.b???
 			{
 				if (p.a->isinternal())
 				{
