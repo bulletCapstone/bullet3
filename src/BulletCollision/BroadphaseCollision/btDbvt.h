@@ -181,10 +181,10 @@ struct btDbvtNode
 {
 	btDbvtVolume volume;
 	btDbvtNode* parent;
-	DBVT_INLINE bool isleaf() const { return (childs[1] == 0); }
+	DBVT_INLINE bool isleaf() const { return (childs[1] == 0); }		//not sure
 	DBVT_INLINE bool isinternal() const { return (!isleaf()); }
 	union {
-		btDbvtNode* childs[2];
+		btDbvtNode* childs[8];
 		void* data;
 		int dataAsInt;
 	};
@@ -198,7 +198,7 @@ struct btDbvntNode
     btScalar angle;
     DBVT_INLINE bool isleaf() const { return (childs[1] == 0); }
     DBVT_INLINE bool isinternal() const { return (!isleaf()); }
-    btDbvntNode* childs[2];
+    btDbvntNode* childs[8];
     void* data;
 
     btDbvntNode(const btDbvtNode* n)
@@ -209,6 +209,12 @@ struct btDbvntNode
     {
         childs[0] = 0;
         childs[1] = 0;
+        childs[2] = 0;
+        childs[3] = 0;
+        childs[4] = 0;
+        childs[5] = 0;
+        childs[6] = 0;
+        childs[7] = 0;
     }
     
     ~btDbvntNode()
@@ -217,6 +223,18 @@ struct btDbvntNode
             delete childs[0];
         if (childs[1])
             delete childs[1];
+        if (childs[2])
+            delete childs[2];
+        if (childs[3])
+            delete childs[3];
+        if (childs[4])
+            delete childs[4];
+        if (childs[5])
+            delete childs[5];
+        if (childs[6])
+            delete childs[6];
+        if (childs[7])
+            delete childs[7];
     }
 };
 
