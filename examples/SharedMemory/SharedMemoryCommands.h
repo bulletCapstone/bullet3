@@ -962,6 +962,7 @@ enum InternalOpenGLVisualizerUpdateFlags
 	COV_SET_SHADOWMAP_WORLD_SIZE = 16,
 	COV_SET_REMOTE_SYNC_TRANSFORM_INTERVAL = 32,
 	COV_SET_SHADOWMAP_INTENSITY = 64,
+	COV_SET_RGB_BACKGROUND = 128,
 };
 
 struct ConfigureOpenGLVisualizerRequest
@@ -977,6 +978,7 @@ struct ConfigureOpenGLVisualizerRequest
 	int m_setFlag;
 	int m_setEnabled;
 	double m_shadowMapIntensity;
+	double m_rgbBackground[3];
 };
 
 enum
@@ -1139,6 +1141,13 @@ struct b3RequestMeshDataArgs
 	int m_flags;
 };
 
+struct b3ResetMeshDataArgs
+{
+	int m_bodyUniqueId;
+	int m_numVertices;
+	int m_flags;
+};
+
 struct b3SendMeshDataArgs
 {
 	int m_numVerticesCopied;
@@ -1207,6 +1216,8 @@ struct SharedMemoryCommand
 		struct UserDataRequestArgs m_removeUserDataRequestArgs;
 		struct b3CollisionFilterArgs m_collisionFilterArgs;
 		struct b3RequestMeshDataArgs m_requestMeshDataArgs;
+		struct b3ResetMeshDataArgs m_resetMeshDataArgs;
+
 	};
 };
 

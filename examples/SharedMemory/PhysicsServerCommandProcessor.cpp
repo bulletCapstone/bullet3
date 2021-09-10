@@ -5485,6 +5485,44 @@ static void gatherVertices(const btTransform& trans, const btCollisionShape* col
 		}
 	}
 }
+
+bool PhysicsServerCommandProcessor::processResetMeshDataCommand(const struct SharedMemoryCommand& clientCmd, struct SharedMemoryStatus& serverStatusOut, char* bufferServerToClient, int bufferSizeInBytes)
+{
+	bool hasStatus = true;
+	BT_PROFILE("CMD_REQUEST_MESH_DATA");
+	serverStatusOut.m_type = CMD_RESET_MESH_DATA_FAILED;
+	int sizeInBytes = 0;
+
+	InternalBodyHandle* bodyHandle = m_data->m_bodyHandles.getHandle(clientCmd.m_requestMeshDataArgs.m_bodyUniqueId);
+	if (bodyHandle)
+	{
+		int totalBytesPerVertex = sizeof(btVector3);
+		double* vertexUpload = (double*)bufferServerToClient;
+
+#ifndef SKIP_SOFT_BODY_MULTI_BODY_DYNAMICS_WORLD
+
+		if (bodyHandle->m_softBody)
+		{
+			btSoftBody* psb = bodyHandle->m_softBody;
+
+			int numVertices = psb->m_nodes.size();
+			if (clientCmd.m_resetMeshDataArgs.m_numVertices == numVertices)
+			{
+				for (int i = 0; i < numVertices; ++i)
+				{
+					btSoftBody::Node& n = psb->m_nodes[i];
+					n.m_x.setValue(vertexUpload[i*3+0], vertexUpload[i*3+1],vertexUpload[i*3+2]);
+				}
+				serverStatusOut.m_type = CMD_RESET_MESH_DATA_COMPLETED;
+			}
+		}
+#endif  //SKIP_SOFT_BODY_MULTI_BODY_DYNAMICS_WORLD
+	}
+	serverStatusOut.m_numDataStreamBytes = 0;
+
+	return hasStatus;
+}
+
 bool PhysicsServerCommandProcessor::processRequestMeshDataCommand(const struct SharedMemoryCommand& clientCmd, struct SharedMemoryStatus& serverStatusOut, char* bufferServerToClient, int bufferSizeInBytes)
 {
 	bool hasStatus = true;
@@ -8023,6 +8061,129 @@ bool PhysicsServerCommandProcessor::processRequestActualStateCommand(const struc
 	return hasStatus;
 }
 
+bool PhysicsServerCommandProcessor::processRequestDeformableContactpointHelper(const struct SharedMemoryCommand& clientCmd)
+{
+#ifndef SKIP_DEFORMABLE_BODY
+	btDeformableMultiBodyDynamicsWorld* deformWorld = getDeformableWorld();
+	if (!deformWorld)
+	{
+		return false;
+	}
+	int numSoftbodyContact = 0;
+	for (int i = deformWorld->getSoftBodyArray().size() - 1; i >= 0; i--)
+	{
+		numSoftbodyContact += deformWorld->getSoftBodyArray()[i]->m_faceRigidContacts.size();
+	}
+	int num_contact_points = m_data->m_cachedContactPoints.size();
+	m_data->m_cachedContactPoints.reserve(num_contact_points + numSoftbodyContact);
+
+	for (int i = deformWorld->getSoftBodyArray().size() - 1; i >= 0; i--)
+	{
+		btSoftBody* psb = deformWorld->getSoftBodyArray()[i];
+		for (int c = 0; c < psb->m_faceRigidContacts.size(); c++)
+		{
+			const btSoftBody::DeformableFaceRigidContact* contact = &psb->m_faceRigidContacts[i];
+			//convert rigidbody contact
+			int linkIndexA = -1;
+			int linkIndexB = -1;
+			int objectIndexA = psb->getUserIndex2();
+
+			int objectIndexB = -1;
+			const btRigidBody* bodyB = btRigidBody::upcast(contact->m_cti.m_colObj);
+			if (bodyB)
+			{
+				objectIndexB = bodyB->getUserIndex2();
+			}
+			const btMultiBodyLinkCollider* mblB = btMultiBodyLinkCollider::upcast(contact->m_cti.m_colObj);
+			if (mblB && mblB->m_multiBody)
+			{
+				linkIndexB = mblB->m_link;
+				objectIndexB = mblB->m_multiBody->getUserIndex2();
+			}
+
+			//apply the filter, if the user provides it
+			bool swap = false;
+			if (clientCmd.m_requestContactPointArguments.m_objectAIndexFilter >= 0)
+			{
+				if (clientCmd.m_requestContactPointArguments.m_objectAIndexFilter == objectIndexA)
+				{
+					swap = false;
+				}
+				else if (clientCmd.m_requestContactPointArguments.m_objectAIndexFilter == objectIndexB)
+				{
+					swap = true;
+				}
+				else
+				{
+					continue;
+				}
+			}
+
+			if (swap)
+			{
+				std::swap(objectIndexA, objectIndexB);
+				std::swap(linkIndexA, linkIndexB);
+			}
+
+			//apply the second object filter, if the user provides it
+			if (clientCmd.m_requestContactPointArguments.m_objectBIndexFilter >= 0)
+			{
+				if (clientCmd.m_requestContactPointArguments.m_objectBIndexFilter != objectIndexB)
+				{
+					continue;
+				}
+			}
+
+			if (
+				(clientCmd.m_updateFlags & CMD_REQUEST_CONTACT_POINT_HAS_LINK_INDEX_A_FILTER) &&
+				clientCmd.m_requestContactPointArguments.m_linkIndexAIndexFilter != linkIndexA)
+			{
+				continue;
+			}
+
+			if (
+				(clientCmd.m_updateFlags & CMD_REQUEST_CONTACT_POINT_HAS_LINK_INDEX_B_FILTER) &&
+				clientCmd.m_requestContactPointArguments.m_linkIndexBIndexFilter != linkIndexB)
+			{
+				continue;
+			}
+			b3ContactPointData pt;
+			pt.m_bodyUniqueIdA = objectIndexA;
+			pt.m_bodyUniqueIdB = objectIndexB;
+			pt.m_contactDistance = contact->m_cti.m_offset;
+			pt.m_contactFlags = 0;
+			pt.m_linkIndexA = linkIndexA;
+			pt.m_linkIndexB = linkIndexB;
+			for (int j = 0; j < 3; j++)
+			{
+				if (swap)
+				{
+					pt.m_contactNormalOnBInWS[j] = -contact->m_cti.m_normal[j];
+					pt.m_positionOnAInWS[j] = contact->m_cti.m_normal[j];
+					pt.m_positionOnBInWS[j] = -contact->m_cti.m_normal[j];
+				}
+				else
+				{
+					pt.m_contactNormalOnBInWS[j] = contact->m_cti.m_normal[j];
+					pt.m_positionOnAInWS[j] = -contact->m_cti.m_normal[j];
+					pt.m_positionOnBInWS[j] = contact->m_cti.m_normal[j];
+				}
+			}
+			pt.m_normalForce = 1;
+			pt.m_linearFrictionForce1 = 0;
+			pt.m_linearFrictionForce2 = 0;
+			for (int j = 0; j < 3; j++)
+			{
+				pt.m_linearFrictionDirection1[j] = 0;
+				pt.m_linearFrictionDirection2[j] = 0;
+			}
+			m_data->m_cachedContactPoints.push_back(pt);
+		}
+	}
+#endif
+	return true;
+}
+
 bool PhysicsServerCommandProcessor::processRequestContactpointInformationCommand(const struct SharedMemoryCommand& clientCmd, struct SharedMemoryStatus& serverStatusOut, char* bufferServerToClient, int bufferSizeInBytes)
 {
 	bool hasStatus = true;
@@ -8165,6 +8326,10 @@ bool PhysicsServerCommandProcessor::processRequestContactpointInformationCommand
 						m_data->m_cachedContactPoints.push_back(pt);
 					}
 				}
+
+#ifndef SKIP_DEFORMABLE_BODY
+				processRequestDeformableContactpointHelper(clientCmd);
+#endif
 				break;
 			}
 
@@ -11305,6 +11470,10 @@ bool PhysicsServerCommandProcessor::processConfigureOpenGLVisualizerCommand(cons
 		{
 			m_data->m_guiHelper->getRenderInterface()->setLightPosition(clientCmd.m_configureOpenGLVisualizerArguments.m_lightPosition);
 		}
+		if (clientCmd.m_updateFlags & COV_SET_RGB_BACKGROUND)
+		{
+			m_data->m_guiHelper->setBackgroundColor(clientCmd.m_configureOpenGLVisualizerArguments.m_rgbBackground);
+		}
 		if (clientCmd.m_updateFlags & COV_SET_SHADOWMAP_RESOLUTION)
 		{
 			m_data->m_guiHelper->getRenderInterface()->setShadowMapResolution(clientCmd.m_configureOpenGLVisualizerArguments.m_shadowMapResolution);
@@ -14214,6 +14383,12 @@ bool PhysicsServerCommandProcessor::processCommand(const struct SharedMemoryComm
 			hasStatus = processRequestMeshDataCommand(clientCmd, serverStatusOut, bufferServerToClient, bufferSizeInBytes);
 			break;
 		}
+		case CMD_RESET_MESH_DATA:
+		{
+			hasStatus = processResetMeshDataCommand(clientCmd, serverStatusOut, bufferServerToClient, bufferSizeInBytes);
+			break;
+		}
+
 		case CMD_CREATE_MULTI_BODY:
 		{
 			hasStatus = processCreateMultiBodyCommand(clientCmd, serverStatusOut, bufferServerToClient, bufferSizeInBytes);
