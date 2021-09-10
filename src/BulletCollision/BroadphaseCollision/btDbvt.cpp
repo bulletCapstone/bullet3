@@ -57,31 +57,31 @@ static DBVT_INLINE btScalar size(const btDbvtVolume& a)
 }
 
 //
-static void getmaxdepth(const btDbvtNode* node, int depth, int& maxdepth)
+static void getmaxdepth(const btDbvtNode* node, int depth, int& maxdepth)	//gets max depth of the tree
 {
 	if (node->isinternal())
 	{
-		getmaxdepth(node->childs[0], depth + 1, maxdepth);
+		getmaxdepth(node->childs[0], depth + 1, maxdepth);					//if internal recurisvely call on children
 		getmaxdepth(node->childs[1], depth + 1, maxdepth);
 	}
 	else
-		maxdepth = btMax(maxdepth, depth);
+		maxdepth = btMax(maxdepth, depth);									//set max depth
 }
 
 //
-static DBVT_INLINE void deletenode(btDbvt* pdbvt,
+static DBVT_INLINE void deletenode(btDbvt* pdbvt,							//deletes a node
 								   btDbvtNode* node)
 {
-	btAlignedFree(pdbvt->m_free);
+	btAlignedFree(pdbvt->m_free);											//free the memory
 	pdbvt->m_free = node;
 }
 
 //
-static void recursedeletenode(btDbvt* pdbvt,
+static void recursedeletenode(btDbvt* pdbvt,								//delete node and its children
 							  btDbvtNode* node)
 {
 	if (node == 0) return;
-	if (!node->isleaf())
+	if (!node->isleaf())													//if not leaf delete children recursively
 	{
 		recursedeletenode(pdbvt, node->childs[0]);
 		recursedeletenode(pdbvt, node->childs[1]);
@@ -91,28 +91,28 @@ static void recursedeletenode(btDbvt* pdbvt,
 }
 
 //
-static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,
+static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,				//pdbvt - current bvt tree? parent - parent node, data- data for new node
 										  btDbvtNode* parent,
 										  void* data)
 {
-	btDbvtNode* node;
-	if (pdbvt->m_free)
+	btDbvtNode* node;													//new node
+	if (pdbvt->m_free)													//m_free?
 	{
-		node = pdbvt->m_free;
+		node = pdbvt->m_free;											//put node into m_free
 		pdbvt->m_free = 0;
 	}
 	else
 	{
-		node = new (btAlignedAlloc(sizeof(btDbvtNode), 16)) btDbvtNode();
+		node = new (btAlignedAlloc(sizeof(btDbvtNode), 16)) btDbvtNode();	//allocate memory for new node
 	}
-	node->parent = parent;
-	node->data = data;
-	node->childs[1] = 0;
+	node->parent = parent;					
+	node->data = data;													//set the info of node
+	node->childs[1] = 0;												//set childs[1] to 0? what about childs[0]
 	return (node);
 }
 
-//
-static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,
+//````
+static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,					//create node set data
 										  btDbvtNode* parent,
 										  const btDbvtVolume& volume,
 										  void* data)
@@ -123,34 +123,34 @@ static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,
 }
 
 //
-static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,
+static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,					//create a node from 2 volumes
 										  btDbvtNode* parent,
 										  const btDbvtVolume& volume0,
 										  const btDbvtVolume& volume1,
 										  void* data)
 {
-	btDbvtNode* node = createnode(pdbvt, parent, data);
+	btDbvtNode* node = createnode(pdbvt, parent, data);						//merge the volumes
 	Merge(volume0, volume1, node->volume);
 	return (node);
 }
 
 //
-static void insertleaf(btDbvt* pdbvt,
-					   btDbvtNode* root,
+static void insertleaf(btDbvt* pdbvt,										//inserts a leaf into the tree
+					   btDbvtNode* root,									//root and tree?
 					   btDbvtNode* leaf)
 {
-	if (!pdbvt->m_root)
+	if (!pdbvt->m_root)														//if there is no root, set leaf to root
 	{
 		pdbvt->m_root = leaf;
 		leaf->parent = 0;
 	}
-	else
+	else										
 	{
-		if (!root->isleaf())
+		if (!root->isleaf())												//if the root is not a leaf
 		{
 			do
 			{
-				root = root->childs[Select(leaf->volume,
+				root = root->childs[Select(leaf->volume,					//select?
 										   root->childs[0]->volume,
 										   root->childs[1]->volume)];
 			} while (!root->isleaf());
@@ -316,19 +316,19 @@ static btDbvtVolume bounds(btDbvtNode** leaves,
 
 //
 static void bottomup(btDbvt* pdbvt,
-					 btDbvtNode** leaves,
+					 btDbvtNode** leaves,								//optimizes the tree from bottom up, can have all other optimizers reroute here
 					 int count)
 {
 	while (count > 1)
 	{
 		btScalar minsize = SIMD_INFINITY;
-		int minidx[2] = {-1, -1};
+		int minidx[2] = {-1, -1};			//indexes for something
 		for (int i = 0; i < count; ++i)
 		{
-			for (int j = i + 1; j < count; ++j)
+			for (int j = i + 1; j < count; ++j)		//iterate through both indexes
 			{
-				const btScalar sz = size(merge(leaves[i]->volume, leaves[j]->volume));
-				if (sz < minsize)
+				const btScalar sz = size(merge(leaves[i]->volume, leaves[j]->volume));	//merge the volume of the leaves at those indexes
+				if (sz < minsize)														//if merged volume meets some criteria then set indexes to i and j
 				{
 					minsize = sz;
 					minidx[0] = i;
@@ -336,14 +336,14 @@ static void bottomup(btDbvt* pdbvt,
 				}
 			}
 		}
-		btDbvtNode* n[] = {leaves[minidx[0]], leaves[minidx[1]]};
-		btDbvtNode* p = createnode(pdbvt, 0, n[0]->volume, n[1]->volume, 0);
-		p->childs[0] = n[0];
-		p->childs[1] = n[1];
+		btDbvtNode* n[] = {leaves[minidx[0]], leaves[minidx[1]]};						//get the nodes at indexes i and j of leaves? not sure what leaves is
+		btDbvtNode* p = createnode(pdbvt, 0, n[0]->volume, n[1]->volume, 0);			//create new node 
+		p->childs[0] = n[0];															//set new nodes children to indexes set before
+		p->childs[1] = n[1];															//set childrens parents to new node
 		n[0]->parent = p;
 		n[1]->parent = p;
-		leaves[minidx[0]] = p;
-		leaves[minidx[1]] = leaves[count - 1];
+		leaves[minidx[0]] = p;															//set one if the indexes to p
+		leaves[minidx[1]] = leaves[count - 1];											//reduce count and keep going
 		--count;
 	}
 }
