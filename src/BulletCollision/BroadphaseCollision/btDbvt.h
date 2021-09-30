@@ -803,7 +803,7 @@ inline void btDbvt::enumNodes(const btDbvtNode* root,									//calls enum nodes
 	policy.Process(root);
 	if (root->isinternal())
 	{
-		enumNodes(root->child policy);
+		enumNodes(root->child, policy);
 	}
 }
 
@@ -903,7 +903,7 @@ inline void btDbvt::collideTV(const btDbvtNode* root,
 							  DBVT_IPOLICY) const
 {
 	
-	if (Intersect(root->volume, volume)){
+	if (Intersect(root->volume, vol)){
 		policy.Process(root);
 	}
 }

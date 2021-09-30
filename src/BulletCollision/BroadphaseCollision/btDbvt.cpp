@@ -30,7 +30,7 @@ struct btDbvtNodeEnumerator : btDbvt::ICollide
 //
 static DBVT_INLINE int indexof(const btDbvtNode* node)
 {
-	return (node->parent->childs[1] == node);
+	return 1;
 }
 
 //
@@ -61,7 +61,7 @@ static void getmaxdepth(const btDbvtNode* node, int depth, int& maxdepth)	//gets
 {
 	if (node->isinternal())
 	{
-		getmaxdepth(node->childs, depth + 1, maxdepth);					//if internal recurisvely call on children
+		getmaxdepth(node->child, depth + 1, maxdepth);					//if internal recurisvely call on children
 	}
 	else
 		maxdepth = btMax(maxdepth, depth);									//set max depth
@@ -164,15 +164,7 @@ static void fetchleaves(btDbvt* pdbvt,										//sets the array leaves to the l
 						tNodeArray& leaves,
 						int depth = -1)
 {
-	if (root->isinternal() && depth)										//if current node is internal call on its children
-	{
-		fetchleaves(pdbvt, root->child, leaves, depth - 1);
-		deletenode(pdbvt, root);											//delete current node?
-	}
-	else									
-	{
-		leaves.push_back(root);												//if not interneal (leaf) add to the tnodearray
-	}
+	return; //does nothing now as all nodes are "leaves"
 }
 
 //dont know what this does didnt change
@@ -265,34 +257,9 @@ static btDbvtNode* topdown(btDbvt* pdbvt,								//no optimization for linked li
 	return;
 }
 
-//not sure, see where this is called and if we need it
+//removed 
 static DBVT_INLINE btDbvtNode* sort(btDbvtNode* n, btDbvtNode*& r)		//some type of sorting
 {
-	btDbvtNode* p = n->parent;
-	btAssert(n->isinternal());
-	if (p > n)
-	{
-		const int i = indexof(n);
-		const int j = 1 - i;
-		btDbvtNode* s = p->childs[j];
-		btDbvtNode* q = p->parent;
-		btAssert(n == p->childs[i]);
-		if (q)
-			q->childs[indexof(p)] = n;
-		else
-			r = n;
-		s->parent = n;
-		p->parent = n;
-		n->parent = q;
-		p->childs[0] = n->childs[0];
-		p->childs[1] = n->childs[1];
-		n->childs[0]->parent = p;
-		n->childs[1]->parent = p;
-		n->childs[i] = p;
-		n->childs[j] = s;
-		btSwap(p->volume, n->volume);
-		return (p);
-	}
 	return (n);
 }
 
@@ -428,14 +395,6 @@ void btDbvt::write(IWriter* iwriter) const											//ask spear what an iwriter
 		const btDbvtNode* n = nodes.nodes[i];
 		int p = -1;
 		if (n->parent) p = nodes.nodes.findLinearSearch(n->parent);
-		if (n->isinternal())
-		{
-			const int c0 = nodes.nodes.findLinearSearch(n->childs[0]);
-			const int c1 = nodes.nodes.findLinearSearch(n->childs[1]);
-			iwriter->WriteNode(n, i, p, c0, c1);
-		}
-		else
-		{
 			iwriter->WriteLeaf(n, i, p);
 		}
 	}
@@ -457,18 +416,11 @@ void btDbvt::clone(btDbvt& dest, IClone* iclone) const								//ask spear what a
 			btDbvtNode* n = createnode(&dest, e.parent, e.node->volume, e.node->data);
 			stack.pop_back();
 			if (e.parent != 0)
-				e.parent->childs[i & 1] = n;
+				e.parent->child = n;
 			else
 				dest.m_root = n;
-			if (e.node->isinternal())
-			{
-				stack.push_back(sStkCLN(e.node->childs[0], n));
-				stack.push_back(sStkCLN(e.node->childs[1], n));
-			}
-			else
-			{
-				iclone->CloneLeaf(n);
-			}
+			
+			iclone->CloneLeaf(n);
 		} while (stack.size() > 0);
 	}
 }
@@ -494,13 +446,9 @@ int btDbvt::countLeaves(const btDbvtNode* node)
 //updated can make faster
 void btDbvt::extractLeaves(const btDbvtNode* node, btAlignedObjectArray<const btDbvtNode*>& leaves)
 {
-	if (node->isinternal())
-	{
-		extractLeaves(node->child, leaves);
-	}
-	else
-	{
+	while(node.isinternal)
 		leaves.push_back(node);
+		node = node->child
 	}
 }
 
