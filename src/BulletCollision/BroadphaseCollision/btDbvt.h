@@ -932,7 +932,6 @@ inline void btDbvt::collideTVNoStackAlloc(const btDbvtNode* root,
 			{
 					policy.Process(n);
 			}
-			}
 		} while (stack.size() > 0);
 	}
 }
@@ -970,19 +969,8 @@ inline void btDbvt::rayTestInternal(const btDbvtNode* root,											//ray test
 			result1 = btRayAabb2(rayFrom, rayDirectionInverse, signs, bounds, tmin, lambda_min, lambda_max);
 			if (result1)
 			{
-				if (node->isinternal())
-				{
-					if (depth > treshold)
-					{
-						stack.resize(stack.size() * 2);
-						treshold = stack.size() - 2;
-					}
-					stack[depth++] = node->child;
-				}
-				else
-				{
+				
 					policy.Process(node);
-				}
 			}
 		} while (depth);
 	}
@@ -990,6 +978,7 @@ inline void btDbvt::rayTestInternal(const btDbvtNode* root,											//ray test
 
 //
 DBVT_PREFIX
+//updted
 inline void btDbvt::rayTest(const btDbvtNode* root,													//another ray test?
 							const btVector3& rayFrom,
 							const btVector3& rayTo,
@@ -1043,19 +1032,8 @@ inline void btDbvt::rayTest(const btDbvtNode* root,													//another ray te
 
 			if (result1)
 			{
-				if (node->isinternal())
-				{
-					if (depth > treshold)
-					{
-						stack.resize(stack.size() * 2);
-						treshold = stack.size() - 2;
-					}
-					stack[depth++] = node->child;
-				}
-				else
-				{
 					policy.Process(node);
-				}
+				
 			}
 		} while (depth);
 	}
@@ -1063,6 +1041,7 @@ inline void btDbvt::rayTest(const btDbvtNode* root,													//another ray te
 
 //
 DBVT_PREFIX
+//updated
 inline void btDbvt::collideKDOP(const btDbvtNode* root,											//more collide functions
 								const btVector3* normals,
 								const btScalar* offsets,
@@ -1107,14 +1086,7 @@ inline void btDbvt::collideKDOP(const btDbvtNode* root,											//more collide
 			}
 			if (!out)
 			{
-				if ((se.mask != inside) && (se.node->isinternal()))
-				{
-					stack.push_back(sStkNP(se.node->child, se.mask));
-				}
-				else
-				{
-					if (policy.AllLeaves(se.node)) enumLeaves(se.node, policy);
-				}
+				if (policy.AllLeaves(se.node)) enumLeaves(se.node, policy);
 			}
 		} while (stack.size());
 	}
@@ -1205,15 +1177,7 @@ inline void btDbvt::collideTU(const btDbvtNode* root,
 			stack.pop_back();
 			if (policy.Descent(n))
 			{
-				if (n->isinternal())
-				{
-					stack.push_back(n->childs[0]);
-					stack.push_back(n->childs[1]);
-				}
-				else
-				{
-					policy.Process(n);
-				}
+				policy.Process(n);
 			}
 		} while (stack.size() > 0);
 	}
