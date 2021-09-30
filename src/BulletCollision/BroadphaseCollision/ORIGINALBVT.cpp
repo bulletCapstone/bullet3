@@ -56,18 +56,19 @@ static DBVT_INLINE btScalar size(const btDbvtVolume& a)
 			edges.x() + edges.y() + edges.z());
 }
 
-//updated
+//
 static void getmaxdepth(const btDbvtNode* node, int depth, int& maxdepth)	//gets max depth of the tree
 {
 	if (node->isinternal())
 	{
-		getmaxdepth(node->childs, depth + 1, maxdepth);					//if internal recurisvely call on children
+		getmaxdepth(node->childs[0], depth + 1, maxdepth);					//if internal recurisvely call on children
+		getmaxdepth(node->childs[1], depth + 1, maxdepth);
 	}
 	else
 		maxdepth = btMax(maxdepth, depth);									//set max depth
 }
 
-//no change
+//
 static DBVT_INLINE void deletenode(btDbvt* pdbvt,							//deletes a node
 								   btDbvtNode* node)
 {
@@ -75,21 +76,22 @@ static DBVT_INLINE void deletenode(btDbvt* pdbvt,							//deletes a node
 	pdbvt->m_free = node;
 }
 
-//updated
+//
 static void recursedeletenode(btDbvt* pdbvt,								//delete node and its children
 							  btDbvtNode* node)
 {
 	if (node == 0) return;
 	if (!node->isleaf())													//if not leaf delete children recursively
 	{
-		recursedeletenode(pdbvt, node->child);
+		recursedeletenode(pdbvt, node->childs[0]);
+		recursedeletenode(pdbvt, node->childs[1]);
 	}
 	if (node == pdbvt->m_root) pdbvt->m_root = 0;
 	deletenode(pdbvt, node);
 }
 
-//updated
-static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,				//pdbvt - current linked list parent - parent node, data- data for new node
+//
+static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,				//pdbvt - current bvt tree? parent - parent node, data- data for new node
 										  btDbvtNode* parent,
 										  void* data)
 {
@@ -105,11 +107,11 @@ static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,				//pdbvt - current li
 	}
 	node->parent = parent;					
 	node->data = data;													//set the info of node
-	node->child = 0;												
+	node->childs[1] = 0;												//set childs[1] to 0? what about childs[0]
 	return (node);
 }
 
-//no change
+//````
 static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,					//create node set data
 										  btDbvtNode* parent,
 										  const btDbvtVolume& volume,
@@ -120,7 +122,7 @@ static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,					//create node set d
 	return (node);
 }
 
-//no change, doesnt need to be called in our linkedlist
+//
 static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,					//create a node from 2 volumes
 										  btDbvtNode* parent,
 										  const btDbvtVolume& volume0,
@@ -132,18 +134,57 @@ static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,					//create a node fro
 	return (node);
 }
 
-//updated
+//
 static void insertleaf(btDbvt* pdbvt,										//inserts a leaf into the tree
-					   btDbvtNode* root,									
+					   btDbvtNode* root,									//root and tree?
 					   btDbvtNode* leaf)
 {
-	while(root.isinternal()){												//find last element
-		root = root.child;													//set its child
+	if (!pdbvt->m_root)														//if there is no root, set leaf to root
+	{
+		pdbvt->m_root = leaf;
+		leaf->parent = 0;
 	}
-	root.child = leaf; 
+	else										
+	{
+		if (!root->isleaf())												//if the root is not a leaf
+		{
+			do
+			{
+				root = root->childs[Select(leaf->volume,					//select?
+										   root->childs[0]->volume,
+										   root->childs[1]->volume)];
+			} while (!root->isleaf());
+		}
+		btDbvtNode* prev = root->parent;
+		btDbvtNode* node = createnode(pdbvt, prev, leaf->volume, root->volume, 0);
+		if (prev)
+		{
+			prev->childs[indexof(root)] = node;
+			node->childs[0] = root;
+			root->parent = node;
+			node->childs[1] = leaf;
+			leaf->parent = node;
+			do
+			{
+				if (!prev->volume.Contain(node->volume))
+					Merge(prev->childs[0]->volume, prev->childs[1]->volume, prev->volume);
+				else
+					break;
+				node = prev;
+			} while (0 != (prev = node->parent));
+		}
+		else
+		{
+			node->childs[0] = root;
+			root->parent = node;
+			node->childs[1] = leaf;
+			leaf->parent = node;
+			pdbvt->m_root = node;
+		}
+	}
 }
 
-//updated
+//
 static btDbvtNode* removeleaf(btDbvt* pdbvt,								//removes a leaf from the tree, returns highest node to change
 							  btDbvtNode* leaf)
 {
@@ -154,11 +195,38 @@ static btDbvtNode* removeleaf(btDbvt* pdbvt,								//removes a leaf from the tr
 	}
 	else	
 	{
-		
+		btDbvtNode* parent = leaf->parent;									//parent of node being removed
+		btDbvtNode* prev = parent->parent;									//parent of parent of node being removed <- becomes the new parent of sibling
+		btDbvtNode* sibling = parent->childs[1 - indexof(leaf)];			//the sibling of the node
+		if (prev)															//if the parent of parent exists
+		{
+			prev->childs[indexof(parent)] = sibling;						//set its child to be the sibling
+			sibling->parent = prev;											//set siblings parent to parent of parent
+			deletenode(pdbvt, parent);										//delete the parent/middleman node
+			while (prev)													
+			{
+				const btDbvtVolume pb = prev->volume;						//when node is deleted, the bounding boxes might have to shrink to represent the new volume
+				Merge(prev->childs[0]->volume, prev->childs[1]->volume, prev->volume);	//set parents volume to the merge of its new childrens volumes
+				if (NotEqual(pb, prev->volume))								//if the volume of the parent is a new volume, update that for its parent
+				{
+					prev = prev->parent;
+				}
+				else
+					break;
+			}
+			return (prev ? prev : pdbvt->m_root);							//return the new parent or return the root if it becomes the root
+		}
+		else																//if parent of parent doesnt exists
+		{
+			pdbvt->m_root = sibling;										//set root nodes children to sibling in same fashion as above
+			sibling->parent = 0;
+			deletenode(pdbvt, parent);
+			return (pdbvt->m_root);
+		}
 	}
 }
 
-//updated but i dont think it will need to be called, every node is a leaf basically now
+//
 static void fetchleaves(btDbvt* pdbvt,										//sets the array leaves to the leaves of the tree
 						btDbvtNode* root,
 						tNodeArray& leaves,
@@ -166,7 +234,8 @@ static void fetchleaves(btDbvt* pdbvt,										//sets the array leaves to the l
 {
 	if (root->isinternal() && depth)										//if current node is internal call on its children
 	{
-		fetchleaves(pdbvt, root->child, leaves, depth - 1);
+		fetchleaves(pdbvt, root->childs[0], leaves, depth - 1);
+		fetchleaves(pdbvt, root->childs[1], leaves, depth - 1);
 		deletenode(pdbvt, root);											//delete current node?
 	}
 	else									
@@ -175,7 +244,7 @@ static void fetchleaves(btDbvt* pdbvt,										//sets the array leaves to the l
 	}
 }
 
-//dont know what this does didnt change
+//
 static bool leftOfAxis(const btDbvtNode* node,								//not exactly sure
 					   const btVector3& org,
 					   const btVector3& axis)
@@ -186,8 +255,6 @@ static bool leftOfAxis(const btDbvtNode* node,								//not exactly sure
 // Partitions leaves such that leaves[0, n) are on the
 // left of axis, and leaves[n, count) are on the right
 // of axis. returns N.
-
-//i dont know what this does either
 static int split(btDbvtNode** leaves,										//also not sure
 				 int count,
 				 const btVector3& org,
@@ -228,7 +295,7 @@ static int split(btDbvtNode** leaves,										//also not sure
 	return begin;
 }
 
-//havent changed
+//
 static btDbvtVolume bounds(btDbvtNode** leaves,							//find the aabb for a given array of leaves
 						   int count)
 {
@@ -247,25 +314,107 @@ static btDbvtVolume bounds(btDbvtNode** leaves,							//find the aabb for a give
 	return (volume);
 }
 
-//updated
-static void bottomup(btDbvt* pdbvt,										//dont think we need to do anything for linkedlist
-					 btDbvtNode** leaves,								
+//
+static void bottomup(btDbvt* pdbvt,
+					 btDbvtNode** leaves,								//optimizes the tree from bottom up, can have all other optimizers reroute here
 					 int count)
 {
-	return;
+	while (count > 1)
+	{
+		btScalar minsize = SIMD_INFINITY;
+		int minidx[2] = {-1, -1};			//indexes for something
+		for (int i = 0; i < count; ++i)
+		{
+			for (int j = i + 1; j < count; ++j)		//iterate through both indexes
+			{
+				const btScalar sz = size(merge(leaves[i]->volume, leaves[j]->volume));	//merge the volume of the leaves at those indexes
+				if (sz < minsize)														//if merged volume meets some criteria then set indexes to i and j
+				{
+					minsize = sz;
+					minidx[0] = i;
+					minidx[1] = j;
+				}
+			}
+		}
+		btDbvtNode* n[] = {leaves[minidx[0]], leaves[minidx[1]]};						//get the nodes at indexes i and j of leaves? not sure what leaves is
+		btDbvtNode* p = createnode(pdbvt, 0, n[0]->volume, n[1]->volume, 0);			//create new node 
+		p->childs[0] = n[0];															//set new nodes children to indexes set before
+		p->childs[1] = n[1];															//set childrens parents to new node
+		n[0]->parent = p;
+		n[1]->parent = p;
+		leaves[minidx[0]] = p;															//set one if the indexes to p
+		leaves[minidx[1]] = leaves[count - 1];											//reduce count and keep going
+		--count;
 	}
 }
 
-//updated
-static btDbvtNode* topdown(btDbvt* pdbvt,								//no optimization for linked list
+//
+static btDbvtNode* topdown(btDbvt* pdbvt,								//optimizes from the top down, just redirect to bottomup probably
 						   btDbvtNode** leaves,
 						   int count,
 						   int bu_treshold)
 {
-	return;
+	static const btVector3 axis[] = {btVector3(1, 0, 0),
+									 btVector3(0, 1, 0),
+									 btVector3(0, 0, 1)};
+	btAssert(bu_treshold > 2);
+	if (count > 1)
+	{
+		if (count > bu_treshold)
+		{
+			const btDbvtVolume vol = bounds(leaves, count);
+			const btVector3 org = vol.Center();
+			int partition;
+			int bestaxis = -1;
+			int bestmidp = count;
+			int splitcount[3][2] = {{0, 0}, {0, 0}, {0, 0}};
+			int i;
+			for (i = 0; i < count; ++i)
+			{
+				const btVector3 x = leaves[i]->volume.Center() - org;
+				for (int j = 0; j < 3; ++j)
+				{
+					++splitcount[j][btDot(x, axis[j]) > 0 ? 1 : 0];
+				}
+			}
+			for (i = 0; i < 3; ++i)
+			{
+				if ((splitcount[i][0] > 0) && (splitcount[i][1] > 0))
+				{
+					const int midp = (int)btFabs(btScalar(splitcount[i][0] - splitcount[i][1]));
+					if (midp < bestmidp)
+					{
+						bestaxis = i;
+						bestmidp = midp;
+					}
+				}
+			}
+			if (bestaxis >= 0)
+			{
+				partition = split(leaves, count, org, axis[bestaxis]);
+				btAssert(partition != 0 && partition != count);
+			}
+			else
+			{
+				partition = count / 2 + 1;
+			}
+			btDbvtNode* node = createnode(pdbvt, 0, vol, 0);
+			node->childs[0] = topdown(pdbvt, &leaves[0], partition, bu_treshold);
+			node->childs[1] = topdown(pdbvt, &leaves[partition], count - partition, bu_treshold);
+			node->childs[0]->parent = node;
+			node->childs[1]->parent = node;
+			return (node);
+		}
+		else
+		{
+			bottomup(pdbvt, leaves, count);
+			return (leaves[0]);
+		}
+	}
+	return (leaves[0]);
 }
 
-//not sure, see where this is called and if we need it
+//
 static DBVT_INLINE btDbvtNode* sort(btDbvtNode* n, btDbvtNode*& r)		//some type of sorting
 {
 	btDbvtNode* p = n->parent;
@@ -296,7 +445,7 @@ static DBVT_INLINE btDbvtNode* sort(btDbvtNode* n, btDbvtNode*& r)		//some type 
 	return (n);
 }
 
-#if 0 //nochange probly dont need
+#if 0
 static DBVT_INLINE btDbvtNode*	walkup(btDbvtNode* n,int count)			//finds the xth generation parent of n
 {
 	while(n&&(count--)) n=n->parent;
@@ -311,7 +460,7 @@ static DBVT_INLINE btDbvtNode*	walkup(btDbvtNode* n,int count)			//finds the xth
 
 //these functinos are more basic versions of the ones above, they all redirect to the ones above
 
-//fine
+//
 btDbvt::btDbvt()														//constructor
 {
 	m_root = 0;
@@ -321,13 +470,13 @@ btDbvt::btDbvt()														//constructor
 	m_opath = 0;
 }
 
-//fine
+//
 btDbvt::~btDbvt()														//destructor
 {
 	clear();
 }
 
-//should be fine
+//
 void btDbvt::clear()													//delete everything in the tree
 {
 	if (m_root)
@@ -339,25 +488,53 @@ void btDbvt::clear()													//delete everything in the tree
 	m_opath = 0;
 }
 
-//no optimization
+//
 void btDbvt::optimizeBottomUp()											//calls bottomup
 {
-	return;
+	if (m_root)
+	{
+		tNodeArray leaves;
+		leaves.reserve(m_leaves);
+		fetchleaves(this, m_root, leaves);
+		bottomup(this, &leaves[0], leaves.size());
+		m_root = leaves[0];
+	}
 }
 
-//no optimization 
+//
 void btDbvt::optimizeTopDown(int bu_treshold)							//calls top down
 {
-	return;
+	if (m_root)
+	{
+		tNodeArray leaves;
+		leaves.reserve(m_leaves);
+		fetchleaves(this, m_root, leaves);
+		m_root = topdown(this, &leaves[0], leaves.size(), bu_treshold);
+	}
 }
 
-//no optimization
+//
 void btDbvt::optimizeIncremental(int passes)							//another optimizeer
 {
-	return;
+	if (passes < 0) passes = m_leaves;
+	if (m_root && (passes > 0))
+	{
+		do
+		{
+			btDbvtNode* node = m_root;
+			unsigned bit = 0;
+			while (node->isinternal())
+			{
+				node = sort(node, m_root)->childs[(m_opath >> bit) & 1];
+				bit = (bit + 1) & (sizeof(unsigned) * 8 - 1);
+			}
+			update(node);
+			++m_opath;
+		} while (--passes);
+	}
 }
 
-//no change
+//
 btDbvtNode* btDbvt::insert(const btDbvtVolume& volume, void* data)		//insert 
 {
 	btDbvtNode* leaf = createnode(this, 0, volume, data);
@@ -366,21 +543,46 @@ btDbvtNode* btDbvt::insert(const btDbvtVolume& volume, void* data)		//insert
 	return (leaf);
 }
 
-//updated
+//
 void btDbvt::update(btDbvtNode* leaf, int lookahead)					//update
 {
 	btDbvtNode* root = removeleaf(this, leaf);
+	if (root)
+	{
+		if (lookahead >= 0)
+		{
+			for (int i = 0; (i < lookahead) && root->parent; ++i)
+			{
+				root = root->parent;
+			}
+		}
+		else
+			root = m_root;
+	}
 	insertleaf(this, root, leaf);
 }
 
-//updated
+//
 void btDbvt::update(btDbvtNode* leaf, btDbvtVolume& volume)				//update
 {
 	btDbvtNode* root = removeleaf(this, leaf);
+	if (root)
+	{
+		if (m_lkhd >= 0)
+		{
+			for (int i = 0; (i < m_lkhd) && root->parent; ++i)
+			{
+				root = root->parent;
+			}
+		}
+		else
+			root = m_root;
+	}
+	leaf->volume = volume;
 	insertleaf(this, root, leaf);
 }
 
-//let it do its thing?
+//
 bool btDbvt::update(btDbvtNode* leaf, btDbvtVolume& volume, const btVector3& velocity, btScalar margin)		//update
 {
 	if (leaf->volume.Contain(volume)) return (false);
@@ -390,7 +592,7 @@ bool btDbvt::update(btDbvtNode* leaf, btDbvtVolume& volume, const btVector3& vel
 	return (true);
 }
 
-//let it do its thing
+//
 bool btDbvt::update(btDbvtNode* leaf, btDbvtVolume& volume, const btVector3& velocity)		//update
 {
 	if (leaf->volume.Contain(volume)) return (false);
@@ -399,7 +601,7 @@ bool btDbvt::update(btDbvtNode* leaf, btDbvtVolume& volume, const btVector3& vel
 	return (true);
 }
 
-//let it do its thing
+//
 bool btDbvt::update(btDbvtNode* leaf, btDbvtVolume& volume, btScalar margin)		//update
 {
 	if (leaf->volume.Contain(volume)) return (false);
@@ -408,7 +610,7 @@ bool btDbvt::update(btDbvtNode* leaf, btDbvtVolume& volume, btScalar margin)		//
 	return (true);
 }
 
-//no change
+//
 void btDbvt::remove(btDbvtNode* leaf)												//remove
 {
 	removeleaf(this, leaf);
@@ -416,7 +618,7 @@ void btDbvt::remove(btDbvtNode* leaf)												//remove
 	--m_leaves;
 }
 
-//not sure 
+//
 void btDbvt::write(IWriter* iwriter) const											//ask spear what an iwriter is
 {
 	btDbvtNodeEnumerator nodes;
@@ -473,7 +675,7 @@ void btDbvt::clone(btDbvt& dest, IClone* iclone) const								//ask spear what a
 	}
 }
 
-//no change
+//
 int btDbvt::maxdepth(const btDbvtNode* node)
 {
 	int depth = 0;
@@ -481,22 +683,22 @@ int btDbvt::maxdepth(const btDbvtNode* node)
 	return (depth);
 }
 
-//updated
+//
 int btDbvt::countLeaves(const btDbvtNode* node)
 {
-	int count = 0;
-	while(node.isinternal){
-		count++;
-		node = node.child;
-	}
-	return count;
+	if (node->isinternal())
+		return (countLeaves(node->childs[0]) + countLeaves(node->childs[1]));
+	else
+		return (1);
+}
 
-//updated can make faster
+//
 void btDbvt::extractLeaves(const btDbvtNode* node, btAlignedObjectArray<const btDbvtNode*>& leaves)
 {
 	if (node->isinternal())
 	{
-		extractLeaves(node->child, leaves);
+		extractLeaves(node->childs[0], leaves);
+		extractLeaves(node->childs[1], leaves);
 	}
 	else
 	{
@@ -546,7 +748,6 @@ sizeof(btDbvtNode):   44 bytes
 [17] btDbvtVolume select: 3419 ms (0%)
 */
 
-//no change
 struct btDbvtBenchmark																			//benchmarking stuff below here
 {
 	struct NilPolicy : btDbvt::ICollide
@@ -645,7 +846,6 @@ struct btDbvtBenchmark																			//benchmarking stuff below here
 	}
 };
 
-//no change
 void btDbvt::benchmark()
 {
 	static const btScalar cfgVolumeCenterScale = 100;
