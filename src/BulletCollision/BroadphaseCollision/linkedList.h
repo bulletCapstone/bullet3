@@ -178,7 +178,7 @@ private:
 typedef btDbvtAabbMm btDbvtVolume;
 
 /* btDbvtNode				*/
-
+//updated
 struct btDbvtNode
 {
 	btDbvtVolume volume;											//volume of the node (internal or leaf)
@@ -194,7 +194,7 @@ struct btDbvtNode
 
 
 /* btDbv(normal)tNode                */
-
+//updated
 struct btDbvntNode														//smae as a regular node but has a normal vector and angle
 {
     btDbvtVolume volume;
@@ -421,6 +421,7 @@ struct btDbvt
 	static void collideTU(const btDbvtNode* root,
 						  DBVT_IPOLICY);
 	// Helpers
+	//no change?
 	static DBVT_INLINE int nearest(const int* i, const btDbvt::sStkNPS* a, btScalar v, int l, int h)		
 	{
 		int m = 0;
@@ -434,6 +435,7 @@ struct btDbvt
 		}
 		return (h);
 	}
+	//no change?
 	static DBVT_INLINE int allocate(btAlignedObjectArray<int>& ifree,
 									btAlignedObjectArray<sStkNPS>& stock,
 									const sStkNPS& value)
@@ -462,6 +464,7 @@ private:
 //
 
 //these functions can be called on an btDbvtAabbMm (aabb)
+//dont need to change at all
 //
 inline btDbvtAabbMm btDbvtAabbMm::FromCE(const btVector3& c, const btVector3& e)			//creates an aabb from the center c and vector e
 {
