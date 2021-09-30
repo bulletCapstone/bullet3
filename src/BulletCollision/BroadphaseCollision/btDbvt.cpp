@@ -137,10 +137,10 @@ static void insertleaf(btDbvt* pdbvt,										//inserts a leaf into the tree
 					   btDbvtNode* root,									
 					   btDbvtNode* leaf)
 {
-	while(root.isinternal()){												//find last element
-		root = root.child;													//set its child
+	while(root->isinternal()){												//find last element
+		root = root->child;													//set its child
 	}
-	root.child = leaf; 
+	root->child = leaf; 
 }
 
 //updated
@@ -154,7 +154,10 @@ static btDbvtNode* removeleaf(btDbvt* pdbvt,								//removes a leaf from the tr
 	}
 	else	
 	{
-		
+		btDbvtNode* p = leaf->parent;
+		p-> child = leaf->child;
+		deletenode(pdbvt, leaf);
+		return p;
 	}
 }
 
@@ -245,7 +248,7 @@ static void bottomup(btDbvt* pdbvt,										//dont think we need to do anything
 					 int count)
 {
 	return;
-	}
+	
 }
 
 //updated
@@ -254,7 +257,7 @@ static btDbvtNode* topdown(btDbvt* pdbvt,								//no optimization for linked li
 						   int count,
 						   int bu_treshold)
 {
-	return;
+	return pdbvt->m_root;
 }
 
 //removed 
@@ -396,7 +399,7 @@ void btDbvt::write(IWriter* iwriter) const											//ask spear what an iwriter
 		int p = -1;
 		if (n->parent) p = nodes.nodes.findLinearSearch(n->parent);
 			iwriter->WriteLeaf(n, i, p);
-		}
+		
 	}
 }
 
@@ -437,18 +440,19 @@ int btDbvt::maxdepth(const btDbvtNode* node)
 int btDbvt::countLeaves(const btDbvtNode* node)
 {
 	int count = 0;
-	while(node.isinternal){
+	while(node->isinternal()){
 		count++;
-		node = node.child;
+		node = node->child;
 	}
 	return count;
+}
 
 //updated can make faster
 void btDbvt::extractLeaves(const btDbvtNode* node, btAlignedObjectArray<const btDbvtNode*>& leaves)
 {
-	while(node.isinternal)
+	while(node->isinternal()){
 		leaves.push_back(node);
-		node = node->child
+		node = node->child;
 	}
 }
 
