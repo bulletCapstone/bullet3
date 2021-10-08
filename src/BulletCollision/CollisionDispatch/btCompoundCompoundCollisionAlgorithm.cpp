@@ -245,38 +245,7 @@ static inline void MycollideTT(const btDbvtNode* root0,
 			btDbvt::sStkNN p = stkStack[--depth];
 			if (MyIntersect(p.a->volume, p.b->volume, xform, distanceThreshold))
 			{
-				if (depth > treshold)
-				{
-					stkStack.resize(stkStack.size() * 2);
-					treshold = stkStack.size() - 4;
-				}
-				if (p.a->isinternal())
-				{
-					if (p.b->isinternal())
-					{
-						stkStack[depth++] = btDbvt::sStkNN(p.a->childs[0], p.b->childs[0]);
-						stkStack[depth++] = btDbvt::sStkNN(p.a->childs[1], p.b->childs[0]);
-						stkStack[depth++] = btDbvt::sStkNN(p.a->childs[0], p.b->childs[1]);
-						stkStack[depth++] = btDbvt::sStkNN(p.a->childs[1], p.b->childs[1]);
-					}
-					else
-					{
-						stkStack[depth++] = btDbvt::sStkNN(p.a->childs[0], p.b);
-						stkStack[depth++] = btDbvt::sStkNN(p.a->childs[1], p.b);
-					}
-				}
-				else
-				{
-					if (p.b->isinternal())
-					{
-						stkStack[depth++] = btDbvt::sStkNN(p.a, p.b->childs[0]);
-						stkStack[depth++] = btDbvt::sStkNN(p.a, p.b->childs[1]);
-					}
-					else
-					{
-						callback->Process(p.a, p.b);
-					}
-				}
+				callback->Process(p.a, p.b);				
 			}
 		} while (depth);
 	}
