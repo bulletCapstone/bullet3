@@ -1,6 +1,6 @@
 /*
 Bullet Continuous Collision Detection and Physics Library
-Copyright (c) 2003-2007 Erwin Coumans  https://bulletphysics.org
+Copyright (c) 2003-2007 Erwin Coumans  http://continuousphysics.com/Bullet/
 
 This software is provided 'as-is', without any express or implied warranty.
 In no event will the authors be held liable for any damages arising from the use of this software.
@@ -128,7 +128,8 @@ subject to the following restrictions:
 //
 
 /* btDbvtAabbMm			*/
-struct btDbvtAabbMm
+
+struct btDbvtAabbMm														//shouldnt need to edit any of this 
 {
     DBVT_INLINE btDbvtAabbMm(){}
 	DBVT_INLINE btVector3 Center() const { return ((mi + mx) / 2); }
@@ -171,27 +172,30 @@ private:
 
 private:
 	btVector3 mi, mx;
-};
+}; 
 
 // Types
 typedef btDbvtAabbMm btDbvtVolume;
 
 /* btDbvtNode				*/
+
 struct btDbvtNode
 {
-	btDbvtVolume volume;
-	btDbvtNode* parent;
-	DBVT_INLINE bool isleaf() const { return (childs[1] == 0); }
+	btDbvtVolume volume;											//volume of the node (internal or leaf)
+	btDbvtNode* parent;												//nodes parent
+	DBVT_INLINE bool isleaf() const { return (childs[1] == 0); }	//functions to determine if leaf or internal
 	DBVT_INLINE bool isinternal() const { return (!isleaf()); }
 	union {
-		btDbvtNode* childs[2];
+		btDbvtNode* childs[2];										//node's children
 		void* data;
 		int dataAsInt;
 	};
-};
+}; 
+
 
 /* btDbv(normal)tNode                */
-struct btDbvntNode
+
+struct btDbvntNode														//smae as a regular node but has a normal vector and angle
 {
     btDbvtVolume volume;
     btVector3 normal;
@@ -218,7 +222,7 @@ struct btDbvntNode
         if (childs[1])
             delete childs[1];
     }
-};
+}; 
 
 typedef btAlignedObjectArray<const btDbvtNode*> btNodeStack;
 
@@ -228,42 +232,42 @@ typedef btAlignedObjectArray<const btDbvtNode*> btNodeStack;
 struct btDbvt
 {
 	/* Stack element	*/
-	struct sStkNN
+	struct sStkNN																	//struct that holds 2 nodes
 	{
 		const btDbvtNode* a;
 		const btDbvtNode* b;
 		sStkNN() {}
 		sStkNN(const btDbvtNode* na, const btDbvtNode* nb) : a(na), b(nb) {}
 	};
-	struct sStkNP
+	struct sStkNP																	//struct that holdes a node and a mask
 	{
 		const btDbvtNode* node;
 		int mask;
 		sStkNP(const btDbvtNode* n, unsigned m) : node(n), mask(m) {}
 	};
-	struct sStkNPS
-	{
+	struct sStkNPS																	//struct that holdes a node a mask and a value
+	{	
 		const btDbvtNode* node;
 		int mask;
 		btScalar value;
 		sStkNPS() {}
 		sStkNPS(const btDbvtNode* n, unsigned m, btScalar v) : node(n), mask(m), value(v) {}
 	};
-	struct sStkCLN
+	struct sStkCLN																	//struct that holdes a node and its parent
 	{
 		const btDbvtNode* node;
 		btDbvtNode* parent;
 		sStkCLN(const btDbvtNode* n, btDbvtNode* p) : node(n), parent(p) {}
 	};
     
-    struct sStknNN
+    struct sStknNN																	//same as struct above but for nodes with normals
     {
         const btDbvntNode* a;
         const btDbvntNode* b;
         sStknNN() {}
         sStknNN(const btDbvntNode* na, const btDbvntNode* nb) : a(na), b(nb) {}
     };
-	// Policies/Interfaces
+	// Policies/Interfaces															//ploicies?
 
 	/* ICollide	*/
 	struct ICollide
@@ -299,7 +303,7 @@ struct btDbvt
 	};
 
 	// Fields
-	btDbvtNode* m_root;
+	btDbvtNode* m_root;																//bvt fields
 	btDbvtNode* m_free;
 	int m_lkhd;
 	int m_leaves;
@@ -307,7 +311,7 @@ struct btDbvt
 
 	btAlignedObjectArray<sStkNN> m_stkStack;
 
-	// Methods
+	// Methods																		//in .cpp
 	btDbvt();
 	~btDbvt();
 	void clear();
@@ -327,7 +331,7 @@ struct btDbvt
 	static int maxdepth(const btDbvtNode* node);
 	static int countLeaves(const btDbvtNode* node);
 	static void extractLeaves(const btDbvtNode* node, btAlignedObjectArray<const btDbvtNode*>& leaves);
-#if DBVT_ENABLE_BENCHMARK
+#if DBVT_ENABLE_BENCHMARK																					//more policy stuff
 	static void benchmark();
 #else
 	static void benchmark()
@@ -420,7 +424,7 @@ struct btDbvt
 	static void collideTU(const btDbvtNode* root,
 						  DBVT_IPOLICY);
 	// Helpers
-	static DBVT_INLINE int nearest(const int* i, const btDbvt::sStkNPS* a, btScalar v, int l, int h)
+	static DBVT_INLINE int nearest(const int* i, const btDbvt::sStkNPS* a, btScalar v, int l, int h)		
 	{
 		int m = 0;
 		while (l < h)
@@ -460,8 +464,9 @@ private:
 // Inline's
 //
 
+//these functions can be called on an btDbvtAabbMm (aabb)
 //
-inline btDbvtAabbMm btDbvtAabbMm::FromCE(const btVector3& c, const btVector3& e)
+inline btDbvtAabbMm btDbvtAabbMm::FromCE(const btVector3& c, const btVector3& e)			//creates an aabb from the center c and vector e
 {
 	btDbvtAabbMm box;
 	box.mi = c - e;
@@ -470,13 +475,13 @@ inline btDbvtAabbMm btDbvtAabbMm::FromCE(const btVector3& c, const btVector3& e)
 }
 
 //
-inline btDbvtAabbMm btDbvtAabbMm::FromCR(const btVector3& c, btScalar r)
+inline btDbvtAabbMm btDbvtAabbMm::FromCR(const btVector3& c, btScalar r)					//creates aabb from center c and radius r
 {
 	return (FromCE(c, btVector3(r, r, r)));
 }
 
 //
-inline btDbvtAabbMm btDbvtAabbMm::FromMM(const btVector3& mi, const btVector3& mx)
+inline btDbvtAabbMm btDbvtAabbMm::FromMM(const btVector3& mi, const btVector3& mx)			//creates aabb from a min and max vector
 {
 	btDbvtAabbMm box;
 	box.mi = mi;
@@ -485,7 +490,7 @@ inline btDbvtAabbMm btDbvtAabbMm::FromMM(const btVector3& mi, const btVector3& m
 }
 
 //
-inline btDbvtAabbMm btDbvtAabbMm::FromPoints(const btVector3* pts, int n)
+inline btDbvtAabbMm btDbvtAabbMm::FromPoints(const btVector3* pts, int n)					//creates aabb from points 
 {
 	btDbvtAabbMm box;
 	box.mi = box.mx = pts[0];
@@ -498,7 +503,7 @@ inline btDbvtAabbMm btDbvtAabbMm::FromPoints(const btVector3* pts, int n)
 }
 
 //
-inline btDbvtAabbMm btDbvtAabbMm::FromPoints(const btVector3** ppts, int n)
+inline btDbvtAabbMm btDbvtAabbMm::FromPoints(const btVector3** ppts, int n)				//creates aabb from points
 {
 	btDbvtAabbMm box;
 	box.mi = box.mx = *ppts[0];
@@ -511,14 +516,14 @@ inline btDbvtAabbMm btDbvtAabbMm::FromPoints(const btVector3** ppts, int n)
 }
 
 //
-DBVT_INLINE void btDbvtAabbMm::Expand(const btVector3& e)
+DBVT_INLINE void btDbvtAabbMm::Expand(const btVector3& e)								//expand the size of the aabb by size e
 {
 	mi -= e;
 	mx += e;
 }
 
 //
-DBVT_INLINE void btDbvtAabbMm::SignedExpand(const btVector3& e)
+DBVT_INLINE void btDbvtAabbMm::SignedExpand(const btVector3& e)							//same as above but with signed vector
 {
 	if (e.x() > 0)
 		mx.setX(mx.x() + e[0]);
@@ -535,7 +540,7 @@ DBVT_INLINE void btDbvtAabbMm::SignedExpand(const btVector3& e)
 }
 
 //
-DBVT_INLINE bool btDbvtAabbMm::Contain(const btDbvtAabbMm& a) const
+DBVT_INLINE bool btDbvtAabbMm::Contain(const btDbvtAabbMm& a) const						//returns true if an aabb contains another aabb
 {
 	return ((mi.x() <= a.mi.x()) &&
 			(mi.y() <= a.mi.y()) &&
@@ -546,7 +551,7 @@ DBVT_INLINE bool btDbvtAabbMm::Contain(const btDbvtAabbMm& a) const
 }
 
 //
-DBVT_INLINE int btDbvtAabbMm::Classify(const btVector3& n, btScalar o, int s) const
+DBVT_INLINE int btDbvtAabbMm::Classify(const btVector3& n, btScalar o, int s) const		//not sure
 {
 	btVector3 pi, px;
 	switch (s)
@@ -590,7 +595,7 @@ DBVT_INLINE int btDbvtAabbMm::Classify(const btVector3& n, btScalar o, int s) co
 }
 
 //
-DBVT_INLINE btScalar btDbvtAabbMm::ProjectMinimum(const btVector3& v, unsigned signs) const
+DBVT_INLINE btScalar btDbvtAabbMm::ProjectMinimum(const btVector3& v, unsigned signs) const	//also not sure
 {
 	const btVector3* b[] = {&mx, &mi};
 	const btVector3 p(b[(signs >> 0) & 1]->x(),
@@ -600,7 +605,7 @@ DBVT_INLINE btScalar btDbvtAabbMm::ProjectMinimum(const btVector3& v, unsigned s
 }
 
 //
-DBVT_INLINE void btDbvtAabbMm::AddSpan(const btVector3& d, btScalar& smi, btScalar& smx) const
+DBVT_INLINE void btDbvtAabbMm::AddSpan(const btVector3& d, btScalar& smi, btScalar& smx) const 		
 {
 	for (int i = 0; i < 3; ++i)
 	{
@@ -618,7 +623,7 @@ DBVT_INLINE void btDbvtAabbMm::AddSpan(const btVector3& d, btScalar& smi, btScal
 }
 
 //
-DBVT_INLINE bool Intersect(const btDbvtAabbMm& a,
+DBVT_INLINE bool Intersect(const btDbvtAabbMm& a,											//check if 2 aabbs interset
 						   const btDbvtAabbMm& b)
 {
 #if DBVT_INT0_IMPL == DBVT_IMPL_SSE
@@ -641,7 +646,7 @@ DBVT_INLINE bool Intersect(const btDbvtAabbMm& a,
 }
 
 //
-DBVT_INLINE bool Intersect(const btDbvtAabbMm& a,
+DBVT_INLINE bool Intersect(const btDbvtAabbMm& a,											//check if aabb and a vector intersect 
 						   const btVector3& b)
 {
 	return ((b.x() >= a.mi.x()) &&
@@ -655,7 +660,7 @@ DBVT_INLINE bool Intersect(const btDbvtAabbMm& a,
 //////////////////////////////////////
 
 //
-DBVT_INLINE btScalar Proximity(const btDbvtAabbMm& a,
+DBVT_INLINE btScalar Proximity(const btDbvtAabbMm& a,										//finds proximity of two aabbs?
 							   const btDbvtAabbMm& b)
 {
 	const btVector3 d = (a.mi + a.mx) - (b.mi + b.mx);
@@ -663,7 +668,7 @@ DBVT_INLINE btScalar Proximity(const btDbvtAabbMm& a,
 }
 
 //
-DBVT_INLINE int Select(const btDbvtAabbMm& o,
+DBVT_INLINE int Select(const btDbvtAabbMm& o,												//returns which aabb a or b is closer to o
 					   const btDbvtAabbMm& a,
 					   const btDbvtAabbMm& b)
 {
@@ -737,12 +742,12 @@ DBVT_INLINE int Select(const btDbvtAabbMm& o,
 	return (r[0] & 1);
 #endif
 #else
-	return (Proximity(o, a) < Proximity(o, b) ? 0 : 1);
+	return (Proximity(o, a) < Proximity(o, b) ? 0 : 1);										//this is the whole function 
 #endif
 }
 
 //
-DBVT_INLINE void Merge(const btDbvtAabbMm& a,
+DBVT_INLINE void Merge(const btDbvtAabbMm& a,												//set r to be the aabb of merged a and b
 					   const btDbvtAabbMm& b,
 					   btDbvtAabbMm& r)
 {
@@ -771,7 +776,7 @@ DBVT_INLINE void Merge(const btDbvtAabbMm& a,
 }
 
 //
-DBVT_INLINE bool NotEqual(const btDbvtAabbMm& a,
+DBVT_INLINE bool NotEqual(const btDbvtAabbMm& a,											//returns if a and b are not the same aabb
 						  const btDbvtAabbMm& b)
 {
 	return ((a.mi.x() != b.mi.x()) ||
@@ -787,8 +792,10 @@ DBVT_INLINE bool NotEqual(const btDbvtAabbMm& a,
 //
 
 //
+
+//recursively calls enumNodes,policy on every internal node
 DBVT_PREFIX
-inline void btDbvt::enumNodes(const btDbvtNode* root,
+inline void btDbvt::enumNodes(const btDbvtNode* root,									//calls enum nodes on every node, more policy stuff
 							  DBVT_IPOLICY)
 {
 	DBVT_CHECKTYPE
@@ -802,7 +809,7 @@ inline void btDbvt::enumNodes(const btDbvtNode* root,
 
 //
 DBVT_PREFIX
-inline void btDbvt::enumLeaves(const btDbvtNode* root,
+inline void btDbvt::enumLeaves(const btDbvtNode* root,									//same as above but only for leaves?
 							   DBVT_IPOLICY)
 {
 	DBVT_CHECKTYPE
@@ -819,27 +826,28 @@ inline void btDbvt::enumLeaves(const btDbvtNode* root,
 
 //
 DBVT_PREFIX
-inline void btDbvt::collideTT(const btDbvtNode* root0,
-							  const btDbvtNode* root1,
+inline void btDbvt::collideTT(const btDbvtNode* root0,		//Lots of collide functions with different suffixes and different signatures, 
+							  const btDbvtNode* root1,		//all follow the same basic structure
+
 							  DBVT_IPOLICY)
 {
 	DBVT_CHECKTYPE
 	if (root0 && root1)
 	{
-		int depth = 1;
-		int treshold = DOUBLE_STACKSIZE - 4;
-		btAlignedObjectArray<sStkNN> stkStack;
-		stkStack.resize(DOUBLE_STACKSIZE);
-		stkStack[0] = sStkNN(root0, root1);
+		int depth = 1;								//used as an index in stkStack
+		int treshold = DOUBLE_STACKSIZE - 4;		//not sure about STACKSIZE
+		btAlignedObjectArray<sStkNN> stkStack;		//StkNN - struct for holding 2 nodes, created in do while as collide functions explore tree	
+		stkStack.resize(DOUBLE_STACKSIZE);			//StkStack - arrays defined to hold StkNN structs, keep track of stknn as they are explored in collide functions
+		stkStack[0] = sStkNN(root0, root1);			
 		do
 		{
-			sStkNN p = stkStack[--depth];
-			if (depth > treshold)
+			sStkNN p = stkStack[--depth];			//set p = to two nodes at depth
+			if (depth > treshold)					//if depth is not at threshold
 			{
 				stkStack.resize(stkStack.size() * 2);
-				treshold = stkStack.size() - 4;
+				treshold = stkStack.size() - 4;		//change threshold
 			}
-			if (p.a == p.b)
+			if (p.a == p.b)							//when would p.a = p.b???
 			{
 				if (p.a->isinternal())
 				{
@@ -1220,7 +1228,7 @@ inline void btDbvt::collideTVNoStackAlloc(const btDbvtNode* root,
 }
 
 DBVT_PREFIX
-inline void btDbvt::rayTestInternal(const btDbvtNode* root,
+inline void btDbvt::rayTestInternal(const btDbvtNode* root,											//ray test?
 									const btVector3& rayFrom,
 									const btVector3& rayTo,
 									const btVector3& rayDirectionInverse,
@@ -1273,7 +1281,7 @@ inline void btDbvt::rayTestInternal(const btDbvtNode* root,
 
 //
 DBVT_PREFIX
-inline void btDbvt::rayTest(const btDbvtNode* root,
+inline void btDbvt::rayTest(const btDbvtNode* root,													//another ray test?
 							const btVector3& rayFrom,
 							const btVector3& rayTo,
 							DBVT_IPOLICY)
@@ -1347,7 +1355,7 @@ inline void btDbvt::rayTest(const btDbvtNode* root,
 
 //
 DBVT_PREFIX
-inline void btDbvt::collideKDOP(const btDbvtNode* root,
+inline void btDbvt::collideKDOP(const btDbvtNode* root,											//more collide functions
 								const btVector3* normals,
 								const btScalar* offsets,
 								int count,
@@ -1407,7 +1415,7 @@ inline void btDbvt::collideKDOP(const btDbvtNode* root,
 
 //
 DBVT_PREFIX
-inline void btDbvt::collideOCL(const btDbvtNode* root,
+inline void btDbvt::collideOCL(const btDbvtNode* root,	
 							   const btVector3* normals,
 							   const btScalar* offsets,
 							   const btVector3& sortaxis,
@@ -1576,4 +1584,3 @@ inline void btDbvt::collideTU(const btDbvtNode* root,
 #undef DBVT_INT0_IMPL
 
 #endif
-
