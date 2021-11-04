@@ -1,0 +1,1 @@
+g++ -g -std=c++11 -pg HelloWorld.cpp -L ../../src/BulletCollision -L ../../src/LinearMath -L ../../src/BulletDynamics -l BulletDynamics -l BulletCollision -l LinearMath -I ../../src -o a.out

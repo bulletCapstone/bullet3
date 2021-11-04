@@ -21,6 +21,7 @@ subject to the following restrictions:
 #include "LinearMath/btVector3.h"
 #include "LinearMath/btTransform.h"
 #include "LinearMath/btAabbUtil2.h"
+#include <iostream>
 //
 // Compile time configuration
 //
@@ -200,9 +201,9 @@ struct btDbvntNode														//smae as a regular node but has a normal vector
     btDbvtVolume volume;
     btVector3 normal;
     btScalar angle;
-    DBVT_INLINE bool isleaf() const { return (child == 0); }
+    DBVT_INLINE bool isleaf() const { return(child == 0);}
     DBVT_INLINE bool isinternal() const { return (!isleaf()); }
-    btDbvntNode* child;
+    btDbvntNode* child = 0;
     void* data;
 
     btDbvntNode(const btDbvtNode* n)
@@ -626,23 +627,16 @@ DBVT_INLINE void btDbvtAabbMm::AddSpan(const btVector3& d, btScalar& smi, btScal
 DBVT_INLINE bool Intersect(const btDbvtAabbMm& a,											//check if 2 aabbs interset
 						   const btDbvtAabbMm& b)
 {
-#if DBVT_INT0_IMPL == DBVT_IMPL_SSE
-	const __m128 rt(_mm_or_ps(_mm_cmplt_ps(_mm_load_ps(b.mx), _mm_load_ps(a.mi)),
-							  _mm_cmplt_ps(_mm_load_ps(a.mx), _mm_load_ps(b.mi))));
-#if defined(_WIN32)
-	const __int32* pu((const __int32*)&rt);
-#else
-	const int* pu((const int*)&rt);
-#endif
-	return ((pu[0] | pu[1] | pu[2]) == 0);
-#else
-	return ((a.mi.x() <= b.mx.x()) &&
+	std::cout << "Intersect1";
+	std::cout << a.mi.x(); 
+	bool c =(a.mi.x() <= b.mx.x()) &&
 			(a.mx.x() >= b.mi.x()) &&
 			(a.mi.y() <= b.mx.y()) &&
 			(a.mx.y() >= b.mi.y()) &&
 			(a.mi.z() <= b.mx.z()) &&
-			(a.mx.z() >= b.mi.z()));
-#endif
+			(a.mx.z() >= b.mi.z());
+	std::cout << c;
+	return c;
 }
 
 //
@@ -902,7 +896,23 @@ inline void btDbvt::collideTV(const btDbvtNode* root,
 							  const btDbvtVolume& vol,
 							  DBVT_IPOLICY) const
 {
-	
+	std::cout<< "collide1" << std::endl;
+
+	std::cout << root->volume.Mins().x() << std::endl;
+	std::cout << root->volume.Mins().y() << std::endl;
+	std::cout << root->volume.Mins().z() << std::endl;
+	std::cout << root->volume.Maxs().x() << std::endl;	
+	std::cout << root->volume.Maxs().y() << std::endl;
+	std::cout << root->volume.Maxs().z() << std::endl;
+
+	std::cout << vol.Mins().x() << std::endl;
+	std::cout << vol.Mins().y() << std::endl;
+	std::cout << vol.Mins().z() << std::endl;
+	std::cout << vol.Maxs().x() << std::endl;
+	std::cout << vol.Maxs().y() << std::endl;
+	std::cout << vol.Maxs().z() << std::endl;
+
+	std::cout<< "collide2" << std::endl;
 	if (Intersect(root->volume, vol)){
 		policy.Process(root);
 	}

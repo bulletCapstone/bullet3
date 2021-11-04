@@ -15,6 +15,7 @@ subject to the following restrictions:
 ///btDbvt implementation by Nathanael Presson
 
 #include "btDbvt.h"
+#include <iostream>
 
 //
 typedef btAlignedObjectArray<btDbvtNode*> tNodeArray;
@@ -137,9 +138,20 @@ static void insertleaf(btDbvt* pdbvt,										//inserts a leaf into the tree
 					   btDbvtNode* root,									
 					   btDbvtNode* leaf)
 {
+	std::cout << "insertLeaf1" << std::endl;
+	if (!pdbvt->m_root)
+	{
+		pdbvt->m_root = leaf;
+		leaf->parent = 0;
+		std::cout << "insertLeaf2" << std::endl;
+		return;
+	}
+	
 	while(root->isinternal()){												//find last element
+	std::cout << "insertLeaf3" << std::endl;
 		root = root->child;													//set its child
 	}
+	std::cout << "insertLeaf4" << std::endl;
 	root->child = leaf; 
 }
 
@@ -330,9 +342,14 @@ void btDbvt::optimizeIncremental(int passes)							//another optimizeer
 //no change
 btDbvtNode* btDbvt::insert(const btDbvtVolume& volume, void* data)		//insert 
 {
+	std::cout << "insert" << std::endl;
+	std::cout << "create" << std::endl;
 	btDbvtNode* leaf = createnode(this, 0, volume, data);
+	std::cout << leaf->volume.Mins().x() << std::endl;
+	std::cout << "insert2" << std::endl;
 	insertleaf(this, m_root, leaf);
 	++m_leaves;
+	std::cout << "insert3" << std::endl;
 	return (leaf);
 }
 

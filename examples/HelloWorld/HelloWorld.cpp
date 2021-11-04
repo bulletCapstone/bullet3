@@ -16,13 +16,13 @@ subject to the following restrictions:
 ///-----includes_start-----
 #include "btBulletDynamicsCommon.h"
 #include <stdio.h>
+#include <iostream>
 
 /// This is a Hello World program for running a basic Bullet physics simulation
 
 int main(int argc, char** argv)
 {
 	///-----includes_end-----
-
 	int i;
 	///-----initialization_start-----
 
@@ -41,7 +41,6 @@ int main(int argc, char** argv)
 	btDiscreteDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, overlappingPairCache, solver, collisionConfiguration);
 
 	dynamicsWorld->setGravity(btVector3(0, -10, 0));
-
 	///-----initialization_end-----
 
 	//keep track of the shapes, we release memory at exit.
@@ -75,6 +74,8 @@ int main(int argc, char** argv)
 		btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, myMotionState, groundShape, localInertia);
 		btRigidBody* body = new btRigidBody(rbInfo);
 
+		std::cout << "here3" << std::endl;
+
 		//add the body to the dynamics world
 		dynamicsWorld->addRigidBody(body);
 	}
@@ -99,7 +100,7 @@ int main(int argc, char** argv)
 		if (isDynamic)
 			colShape->calculateLocalInertia(mass, localInertia);
 
-		startTransform.setOrigin(btVector3(2, 10, 0));
+		startTransform.setOrigin(btVector3(1.9, 10, 0));
 
 		//using motionstate is recommended, it provides interpolation capabilities, and only synchronizes 'active' objects
 		btDefaultMotionState* myMotionState = new btDefaultMotionState(startTransform);
@@ -108,9 +109,7 @@ int main(int argc, char** argv)
 
 		dynamicsWorld->addRigidBody(body);
 	}
-
 	/// Do some simulation
-
 	///-----stepsimulation_start-----
 	for (i = 0; i < 150; i++)
 	{
