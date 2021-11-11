@@ -627,7 +627,6 @@ DBVT_INLINE void btDbvtAabbMm::AddSpan(const btVector3& d, btScalar& smi, btScal
 DBVT_INLINE bool Intersect(const btDbvtAabbMm& a,											//check if 2 aabbs interset
 						   const btDbvtAabbMm& b)
 {
-	std::cout << "Intersect1";
 	return  ((a.mi.x() <= b.mx.x()) &&
 			(a.mx.x() >= b.mi.x()) &&
 			(a.mi.y() <= b.mx.y()) &&
@@ -875,12 +874,10 @@ inline void btDbvt::collideTV(const btDbvtNode* root,
 							  DBVT_IPOLICY) const
 {
 	if (root){
-		std::cout<< "collide1" << std::endl;
 		if (Intersect(root->volume, vol)){
 			policy.Process(root);
 		}
 	}
-	std::cout<< "collide2" << std::endl;
 }
 
 //
