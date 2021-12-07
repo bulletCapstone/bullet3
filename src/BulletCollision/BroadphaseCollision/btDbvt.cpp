@@ -16,6 +16,18 @@ subject to the following restrictions:
 
 #include "btDbvt.h"
 #include <iostream>
+#include <tr1/unordered_map>
+#include <sstream> //for std::stringstream 
+#include <string>  //for std::string
+#include <fstream>
+#include <queue>
+#include <stdio.h>
+
+//map to store the nodes that occur within the program and int to keep track of the nodes
+std::tr1::unordered_map<std::string, int> nodeIndex;
+int nodeNum = 1;
+int stepPrint = 1;
+//
 
 //
 typedef btAlignedObjectArray<btDbvtNode*> tNodeArray;
@@ -68,18 +80,25 @@ static void getmaxdepth(const btDbvtNode* node, int depth, int& maxdepth)	//gets
 		maxdepth = btMax(maxdepth, depth);									//set max depth
 }
 
-//no change
+//updated
 static DBVT_INLINE void deletenode(btDbvt* pdbvt,							//deletes a node
 								   btDbvtNode* node)
 {
-	btAlignedFree(pdbvt->m_free);											//free the memory
-	pdbvt->m_free = node;
+	/*
+	if(node){
+		btAlignedFree(pdbvt->m_free);											//free the memory
+		pdbvt->m_free = node;
+	}
+	*/
+		btDbvt::printTree(pdbvt);
+
 }
 
 //updated
 static void recursedeletenode(btDbvt* pdbvt,								//delete node and its children
 							  btDbvtNode* node)
 {
+	//std::cout << "recurse Deleting" << std::endl;
 	if (node == 0) return;
 	if (!node->isleaf())													//if not leaf delete children recursively
 	{
@@ -87,7 +106,7 @@ static void recursedeletenode(btDbvt* pdbvt,								//delete node and its childr
 	}
 	if (node == pdbvt->m_root) pdbvt->m_root = 0;
 	deletenode(pdbvt, node);
-}
+	}
 
 //updated
 static DBVT_INLINE btDbvtNode* createnode(btDbvt* pdbvt,				//pdbvt - current linked list parent - parent node, data- data for new node
@@ -142,6 +161,7 @@ static void insertleaf(btDbvt* pdbvt,										//inserts a leaf into the tree
 	{
 		pdbvt->m_root = leaf;
 		leaf->parent = 0;
+		btDbvt::printTree(pdbvt);
 		return;
 	}
 	
@@ -150,6 +170,8 @@ static void insertleaf(btDbvt* pdbvt,										//inserts a leaf into the tree
 	}
 	root->child = leaf; 
 	leaf -> parent = root;
+	btDbvt::printTree(pdbvt);
+
 }
 
 //updated
@@ -159,6 +181,7 @@ static btDbvtNode* removeleaf(btDbvt* pdbvt,								//removes a leaf from the tr
 	if (leaf == pdbvt->m_root)												//if th eleaf is the root, set root to 0 and leave
 	{
 		pdbvt->m_root = 0;
+		btDbvt::printTree(pdbvt);
 		return (0);
 	}
 	else	
@@ -166,8 +189,10 @@ static btDbvtNode* removeleaf(btDbvt* pdbvt,								//removes a leaf from the tr
 		btDbvtNode* p = leaf->parent;
 		p-> child = leaf->child;
 		deletenode(pdbvt, leaf);
+		btDbvt::printTree(pdbvt);
 		return p;
 	}
+
 }
 
 //updated but i dont think it will need to be called, every node is a leaf basically now
@@ -347,16 +372,19 @@ btDbvtNode* btDbvt::insert(const btDbvtVolume& volume, void* data)		//insert
 
 //updated
 void btDbvt::update(btDbvtNode* leaf, int lookahead)					//update
-{
+{	/*
 	btDbvtNode* root = removeleaf(this, leaf);
 	insertleaf(this, root, leaf);
+	*/
 }
 
 //updated
 void btDbvt::update(btDbvtNode* leaf, btDbvtVolume& volume)				//update
 {
+	/*
 	btDbvtNode* root = removeleaf(this, leaf);
 	insertleaf(this, root, leaf);
+	*/
 }
 
 //let it do its thing?
@@ -463,6 +491,57 @@ void btDbvt::extractLeaves(const btDbvtNode* node, btAlignedObjectArray<const bt
 		leaves.push_back(node);
 		node = node->child;
 	}
+}
+
+void btDbvt::printTree(btDbvt* pdbvt)
+{
+	const char* filename = "graph.txt";
+	std::ofstream myfile;
+	myfile.open(filename,std::ofstream::app);
+	myfile << "digraph G {\n";
+
+
+	std::queue<btDbvtNode*> q;
+	if(pdbvt->m_root){
+		q.push(pdbvt->m_root);
+	}
+	while(!q.empty())
+	{
+		const btDbvtNode* const temp_node = q.front();
+        q.pop();
+		if (nodeIndex.find(pointerToString(temp_node))==nodeIndex.end()){
+			nodeIndex[pointerToString(temp_node)] = nodeNum;
+			nodeNum += 1;
+		}
+
+        if (!temp_node->isleaf()) {
+			if (nodeIndex.find(pointerToString(temp_node->child))==nodeIndex.end()){
+				nodeIndex[pointerToString(temp_node->child)] = nodeNum;
+				nodeNum += 1;
+			}
+			
+			myfile << "\t";
+			myfile << nodeIndex[pointerToString(temp_node)];
+			myfile << " -> ";
+			myfile << nodeIndex[pointerToString(temp_node->child)];
+			myfile << ";\n";
+			
+		
+            q.push(temp_node->child);
+        }
+
+	}
+	myfile << "# step: " << stepPrint << std::endl;
+	stepPrint+=1;
+	myfile << "}\n";
+	myfile.close();
+}
+
+std::string btDbvt::pointerToString(const btDbvtNode* node){
+	std::stringstream ss;
+	ss << node;
+	std::string str = ss.str();
+	return str;
 }
 
 //

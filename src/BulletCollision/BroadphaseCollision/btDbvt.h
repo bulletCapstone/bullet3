@@ -329,6 +329,9 @@ struct btDbvt
 	static int maxdepth(const btDbvtNode* node);
 	static int countLeaves(const btDbvtNode* node);
 	static void extractLeaves(const btDbvtNode* node, btAlignedObjectArray<const btDbvtNode*>& leaves);
+	static void printTree(btDbvt* pdbvt);
+	static std::string pointerToString(const btDbvtNode* node);
+	
 #if DBVT_ENABLE_BENCHMARK																					//more policy stuff
 	static void benchmark();
 #else
